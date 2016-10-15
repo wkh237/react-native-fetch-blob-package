@@ -82,6 +82,8 @@
 - (void) closeInStream;
 - (void) closeOutStream;
 
+- (void) openFile:( NSString * _Nonnull ) uri;
+
 @end
 
 #endif /* RNFetchBlobFS_h */

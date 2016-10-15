@@ -6,6 +6,7 @@
 
 #import "RNFetchBlob.h"
 #import "RCTLog.h"
+#import "RCTRootView.h"
 #import "RCTBridge.h"
 #import "RCTEventDispatcher.h"
 #import "RNFetchBlobFS.h"
@@ -15,7 +16,7 @@
 #import "RNFetchBlobProgress.h"
 
 
-RCTBridge * bridgeRef;
+__strong RCTBridge * bridgeRef;
 dispatch_queue_t commonTaskQueue;
 dispatch_queue_t fsQueue;
 
@@ -30,6 +31,7 @@ dispatch_queue_t fsQueue;
 @implementation RNFetchBlob
 
 @synthesize filePathPrefix;
+@synthesize documentController;
 @synthesize bridge = _bridge;
 
 - (dispatch_queue_t) methodQueue {
@@ -40,7 +42,8 @@ dispatch_queue_t fsQueue;
 
 + (RCTBridge *)getRCTBridge
 {
-    return bridgeRef;
+    RCTRootView * rootView = [[UIApplication sharedApplication] keyWindow].rootViewController.view;
+    return rootView.bridge;
 }
 
 RCT_EXPORT_MODULE();
@@ -58,6 +61,7 @@ RCT_EXPORT_MODULE();
         [[NSFileManager defaultManager] createDirectoryAtPath:[RNFetchBlobFS getTempPath] withIntermediateDirectories:YES attributes:nil error:NULL];
     }
     bridgeRef = _bridge;
+    [RNFetchBlobNetwork emitExpiredTasks];
     return self;
 }
 
@@ -431,6 +435,44 @@ RCT_EXPORT_METHOD(slice:(NSString *)src dest:(NSString *)dest start:(nonnull NSN
 {
     [RNFetchBlobFS slice:src dest:dest start:start end:end encode:@"" resolver:resolve rejecter:reject];
 })
+
+RCT_EXPORT_METHOD(openDocument:(NSString*)uri scheme:(NSString *)scheme resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject
+{
+    
+    NSURL * url = [[NSURL alloc] initWithString:uri];
+    documentController = [UIDocumentInteractionController interactionControllerWithURL:url];
+    UIViewController *rootCtrl = [[[[UIApplication sharedApplication] delegate] window] rootViewController];
+    documentController.delegate = self;
+    if(scheme == nil || [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:scheme]]) {
+        [documentController  presentOpenInMenuFromRect:rootCtrl.view.bounds inView:rootCtrl.view animated:YES];
+        resolve(@[[NSNull null]]);
+    } else {
+        reject(@"RNFetchBlob could not open document", @"scheme is not supported", nil);
+    }
+})
+
+# pragma mark - open file with UIDocumentInteractionController and delegate
+
+RCT_EXPORT_METHOD(previewDocument:(NSString*)uri scheme:(NSString *)scheme resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject
+{
+    
+    NSURL * url = [[NSURL alloc] initWithString:uri];
+    documentController = [UIDocumentInteractionController interactionControllerWithURL:url];
+    documentController.delegate = self;
+    
+    if(scheme == nil || [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:scheme]]) {
+        [documentController presentPreviewAnimated:YES];
+        resolve(@[[NSNull null]]);
+    } else {
+        reject(@"RNFetchBlob could not open document", @"scheme is not supported", nil);
+    }
+})
+
+- (UIViewController *) documentInteractionControllerViewControllerForPreview: (UIDocumentInteractionController *) controller {
+    UIWindow *window = [UIApplication sharedApplication].keyWindow;
+    return window.rootViewController;
+}
+
 
 #pragma mark RNFetchBlob private methods
 

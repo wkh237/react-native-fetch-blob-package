@@ -24,7 +24,10 @@ NSMutableDictionary *fileStreams = nil;
 //  File system access methods
 //
 ////////////////////////////////////////
-
+@interface RNFetchBlobFS() {
+    UIDocumentInteractionController * docCtrl;
+}
+@end
 @implementation RNFetchBlobFS
 
 
@@ -81,6 +84,10 @@ NSMutableDictionary *fileStreams = nil;
 }
 
 #pragma mark - system directories
+
++ (NSString *) getMainBundleDir {
+    return [[NSBundle mainBundle] bundlePath];
+}
 
 + (NSString *) getCacheDir {
     return [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
@@ -409,9 +416,9 @@ NSMutableDictionary *fileStreams = nil;
             }
             else
             {
-                BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path];
-                if(!exists) {
-                    reject(@"RNFetchBlobFS readFile error", @"file not exists", [[NSError alloc]init]);
+                if(![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                    
+                    reject(@"RNFetchBlobFS readFile error", @"file not exists", nil);
                     return;
                 }
                 fileContent = [NSData dataWithContentsOfFile:path];
