@@ -9,6 +9,7 @@ import {
   NativeAppEventEmitter,
   Platform,
   AsyncStorage,
+  AppState,
 } from 'react-native'
 import type {
   RNFetchBlobNative,
@@ -44,7 +45,17 @@ const {
 
 const Blob = polyfill.Blob
 const emitter = DeviceEventEmitter
-const RNFetchBlob= NativeModules.RNFetchBlob
+const RNFetchBlob = NativeModules.RNFetchBlob
+
+// when app resumes, check if there's any expired network task and trigger
+// their .expire event
+if(Platform.OS === 'ios') {
+  AppState.addEventListener('change', (e) => {
+    console.log('app state changed', e)
+    if(e === 'active')
+      RNFetchBlob.emitExpiredEvent(()=>{})
+  })
+}
 
 // register message channel event handler.
 emitter.addListener("RNFetchBlobMessage", (e) => {
@@ -125,7 +136,6 @@ function fetchFile(options = {}, method, url, headers = {}, body):Promise {
   let total = -1
   let cacheData = ''
   let info = null
-
   let _progress, _uploadProgress, _stateChange
 
   switch(method.toLowerCase()) {
